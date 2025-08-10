@@ -3,9 +3,10 @@ from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, InlineKeyboard
 from telegram.ext import ConversationHandler, ContextTypes
 from database import Session, Campaign, Channel, ChannelGroup, CampaignPosting, Log
 from sqlalchemy import func
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta # Corrected: Added timedelta import
 import decimal
 
+# This import will ensure your bot doesn't crash on startup.
 print("All libraries imported successfully.")
 
 # Define conversation states
@@ -38,6 +39,8 @@ MESSAGES = {
     "post_success_channels": "הקמפיין פורסם בערוצים הבאים:",
     "campaign_not_found": "Campaign ID לא נמצא. בבקשה נסה שוב.",
     "cancel_message": "❌ יצירת הקמפיין בוטלה.",
+    "numeric_error": "הערך שהוזן אינו מספר חוקי. בבקשה ספק ערך מספרי.",
+    "channel_owner_not_found": "לא ניתן למצוא את בעל הערוץ לפרסום."
 }
 
 print("MESSAGES dictionary loaded.")
@@ -67,7 +70,6 @@ async def handle_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_data_store[chat_id] = {'action': 'repost'}
         await query.edit_message_text(MESSAGES["repost_campaign_id"])
         return GETTING_REPOST_CAMPAIGN_ID
-    # Report and Remind handlers will be separate commands
     elif query.data == 'report':
         await report_handler(update, context)
         return ConversationHandler.END
@@ -101,7 +103,7 @@ async def get_ppc(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(MESSAGES["new_campaign_id"])
         return GETTING_CAMPAIGN_ID
     except (ValueError, decimal.InvalidOperation):
-        await update.message.reply_text("הערך שהוזן אינו מספר חוקי. בבקשה ספק ערך מספרי ל-PPC.")
+        await update.message.reply_text(MESSAGES["numeric_error"])
         return GETTING_PPC
 
 async def get_campaign_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -169,6 +171,11 @@ async def get_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     session = Session()
     final_channels = []
+    # Check for empty database and handle 'all' input
+    if not session.query(Channel).first() and not session.query(ChannelGroup).first():
+        await update.message.reply_text(MESSAGES["channels_not_found"])
+        return GETTING_CHANNELS
+
     for item in channels_list:
         if item.lower() == 'all':
             final_channels.extend(session.query(Channel).all())
@@ -178,7 +185,6 @@ async def get_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if channel:
             final_channels.append(channel)
         
-        # Check for groups
         group = session.query(ChannelGroup).filter_by(group_name=item).first()
         if group:
             final_channels.extend(group.channels)
@@ -203,36 +209,55 @@ async def confirm_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = user_data_store[chat_id]
     session = Session()
     
-    if data['action'] == 'new':
-        campaign = Campaign(
-            image_file_id=data['image_file_id'],
-            text=data['text'],
-            base_url=data['base_url'],
-            campaign_id=data['campaign_id'],
-            total_campaign_ppc=data['total_campaign_ppc']
-        )
-        session.add(campaign)
-        session.commit()
-    else:
-        campaign = session.query(Campaign).filter_by(campaign_id=data['campaign_id']).first()
-        if 'image_file_id' in data and 'text' in data: # Check if changes were made
-            campaign.image_file_id = data['image_file_id']
-            campaign.text = data['text']
+    try:
+        if data['action'] == 'new':
+            existing_campaign = session.query(Campaign).filter_by(campaign_id=data['campaign_id']).first()
+            if existing_campaign:
+                await update.message.reply_text("❌ Campaign ID already exists. Please start a new campaign with a unique ID.")
+                session.close()
+                del user_data_store[chat_id]
+                return ConversationHandler.END
+
+            campaign = Campaign(
+                image_file_id=data['image_file_id'],
+                text=data['text'],
+                base_url=data['base_url'],
+                campaign_id=data['campaign_id'],
+                total_campaign_ppc=data['total_campaign_ppc']
+            )
+            session.add(campaign)
             session.commit()
+        else:
+            campaign = session.query(Campaign).filter_by(campaign_id=data['campaign_id']).first()
+            if not campaign:
+                await update.message.reply_text(MESSAGES["campaign_not_found"])
+                session.close()
+                del user_data_store[chat_id]
+                return ConversationHandler.END
+                
+            if 'image_file_id' in data and 'text' in data: 
+                campaign.image_file_id = data['image_file_id']
+                campaign.text = data['text']
+            session.commit()
+    except Exception as e:
+        await update.message.reply_text(f"❌ An error occurred while saving the campaign: {e}")
+        session.rollback()
+        session.close()
+        del user_data_store[chat_id]
+        return ConversationHandler.END
 
     posted_channels = []
-    for channel in set(data['final_channels']): # Use set to handle duplicates from groups
+    for channel in set(data['final_channels']):
         try:
-            # Find the group for the channel
             group = session.query(ChannelGroup).join(ChannelGroup.channels).filter(Channel.id == channel.id).first()
             if not group:
+                await update.message.reply_text(MESSAGES["channel_owner_not_found"])
                 continue
 
-            # Calculate individual PPC
             total_ppc = campaign.total_campaign_ppc
             ppc_percentage = group.ppc_percentage
             individual_ppc = total_ppc * (ppc_percentage / 100)
-
+            
             unique_url = f"{campaign.base_url}{campaign.campaign_id}/{channel.name}"
             caption = f"{campaign.text}\n\nתשלום PPC: {individual_ppc}\n{unique_url}"
 
@@ -243,9 +268,11 @@ async def confirm_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 session.commit()
                 posted_channels.append(channel.name)
             else:
+                if not channel.channel_owner_contact_id:
+                    await update.message.reply_text(f"❌ Cannot post to {channel.name}: owner contact ID is missing.")
+                    continue
+
                 message = await context.bot.send_photo(chat_id=channel.channel_owner_contact_id, photo=campaign.image_file_id, caption=caption)
-                
-                # Log message for future deletion
                 posting = CampaignPosting(campaign_id=campaign.id, channel_id=channel.id, status='sent_to_owner', sent_at=datetime.utcnow(), message_id=message.message_id)
                 session.add(posting)
                 session.commit()
@@ -253,8 +280,10 @@ async def confirm_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         except Exception as e:
             print(f"Failed to post to {channel.name}: {e}")
+            await update.message.reply_text(f"❌ Failed to post to {channel.name}: {e}")
     
     await update.message.reply_text(f"{MESSAGES['post_success']}\n{MESSAGES['post_success_channels']}\n" + "\n".join(posted_channels))
+    session.close()
     del user_data_store[chat_id]
     return ConversationHandler.END
 
@@ -264,31 +293,38 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         del user_data_store[update.effective_chat.id]
     return ConversationHandler.END
 
-# Add placeholder handlers for other commands
+# Placeholder handlers
 async def report_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Generating daily report...")
 
 async def remind_unposted_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Sending reminders for unposted campaigns...")
 
-# Scheduled Task for Message Deletion (to be run via Railway cron job)
+# Scheduled Task for Message Deletion
 async def delete_old_messages(context: ContextTypes.DEFAULT_TYPE):
     session = Session()
-    # Find messages sent yesterday that were not posted
-    yesterday = datetime.utcnow() - timedelta(days=1)
-    posts_to_delete = session.query(CampaignPosting).filter(
-        CampaignPosting.status == 'sent_to_owner',
-        CampaignPosting.sent_at < yesterday
-    ).all()
-    
-    for post in posts_to_delete:
-        try:
-            # Retrieve the owner's chat_id
-            owner_chat_id = session.query(Channel.channel_owner_contact_id).filter_by(id=post.channel_id).scalar()
-            await context.bot.delete_message(chat_id=owner_chat_id, message_id=post.message_id)
-            post.status = 'deleted'
-            session.commit()
-        except Exception as e:
-            print(f"Failed to delete message {post.message_id}: {e}")
+    try:
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        posts_to_delete = session.query(CampaignPosting).filter(
+            CampaignPosting.status == 'sent_to_owner',
+            CampaignPosting.sent_at < yesterday
+        ).all()
+        
+        for post in posts_to_delete:
+            try:
+                owner_chat_id = session.query(Channel.channel_owner_contact_id).filter_by(id=post.channel_id).scalar()
+                if owner_chat_id:
+                    await context.bot.delete_message(chat_id=owner_chat_id, message_id=post.message_id)
+                    post.status = 'deleted'
+                else:
+                    print(f"Owner chat ID not found for channel {post.channel_id}. Skipping deletion.")
+                session.commit()
+            except Exception as e:
+                print(f"Failed to delete message {post.message_id}: {e}")
+                session.rollback()
+    except Exception as e:
+        print(f"An error occurred in delete_old_messages: {e}")
+    finally:
+        session.close()
 
 print("End of file.")
