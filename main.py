@@ -1,9 +1,9 @@
 import os
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ConversationHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
-from bot_handlers import (start_handler, handle_main_menu, get_image, get_text, get_base_url, get_ppc, get_campaign_id, 
+from bot_handlers import (start_handler, handle_main_menu, get_image, get_text, get_base_url, get_ppc, get_campaign_id,
                          get_channels, confirm_post, cancel, get_repost_campaign_id, handle_edit_options, editing_image, editing_text,
-                         report_handler, remind_unposted_handler, 
+                         report_handler, remind_unposted_handler,
                          SELECTING_ACTION, GETTING_CAMPAIGN_ID, UPLOADING_IMAGE, GETTING_TEXT, GETTING_BASE_URL, GETTING_PPC,
                          GETTING_CHANNELS, CONFIRM_POST, GETTING_REPOST_CAMPAIGN_ID, EDIT_OPTIONS, EDITING_IMAGE, EDITING_TEXT)
 
@@ -65,7 +65,7 @@ def main():
         listen="0.0.0.0",
         port=int(os.getenv("PORT", "8000")),
         url_path=os.getenv("WEBHOOK_PATH", "/webhook"),
-        webhook_url=webhook_url + os.getenv("WEBHOOK_PATH", "/webhook")
+        webhook_url=webhook_url  # <-- This line is now corrected
     )
 
 if __name__ == "__main__":
