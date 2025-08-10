@@ -1,17 +1,23 @@
+import os
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ConversationHandler, ContextTypes
 from database import Session, Campaign, Channel, ChannelGroup, CampaignPosting, Log
 from sqlalchemy import func
-from datetime import datetime
-import os
+from datetime import datetime, timedelta
 import decimal
+
+print("All libraries imported successfully.")
 
 # Define conversation states
 (SELECTING_ACTION, GETTING_CAMPAIGN_ID, UPLOADING_IMAGE, GETTING_TEXT, GETTING_BASE_URL, GETTING_PPC,
  GETTING_CHANNELS, CONFIRM_POST, GETTING_REPOST_CAMPAIGN_ID, EDIT_OPTIONS, EDITING_IMAGE, EDITING_TEXT) = range(12)
 
+print("Conversation states defined.")
+
 user_data_store = {}
 OPERATOR_CHAT_ID = os.getenv("OPERATOR_CHAT_ID")
+
+print(f"OPERATOR_CHAT_ID is set to: {OPERATOR_CHAT_ID}")
 
 MESSAGES = {
     "start": "ברוך הבא, מנהל פלטפורמה. מה תרצה לעשות?",
@@ -33,6 +39,8 @@ MESSAGES = {
     "campaign_not_found": "Campaign ID לא נמצא. בבקשה נסה שוב.",
     "cancel_message": "❌ יצירת הקמפיין בוטלה.",
 }
+
+print("MESSAGES dictionary loaded.")
 
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
@@ -282,3 +290,5 @@ async def delete_old_messages(context: ContextTypes.DEFAULT_TYPE):
             session.commit()
         except Exception as e:
             print(f"Failed to delete message {post.message_id}: {e}")
+
+print("End of file.")
