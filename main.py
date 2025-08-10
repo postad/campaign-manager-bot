@@ -1,0 +1,72 @@
+import os
+from telegram import Update
+from telegram.ext import Application, CommandHandler, ConversationHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
+from bot_handlers import (start_handler, handle_main_menu, get_image, get_text, get_base_url, get_ppc, get_campaign_id, 
+                         get_channels, confirm_post, cancel, get_repost_campaign_id, handle_edit_options, editing_image, editing_text,
+                         report_handler, remind_unposted_handler, 
+                         SELECTING_ACTION, GETTING_CAMPAIGN_ID, UPLOADING_IMAGE, GETTING_TEXT, GETTING_BASE_URL, GETTING_PPC,
+                         GETTING_CHANNELS, CONFIRM_POST, GETTING_REPOST_CAMPAIGN_ID, EDIT_OPTIONS, EDITING_IMAGE, EDITING_TEXT)
+
+def main():
+    token = os.getenv("BOT_TOKEN")
+    webhook_url = os.getenv("WEBHOOK_URL")
+
+    if not token or not webhook_url:
+        raise ValueError("BOT_TOKEN and WEBHOOK_URL environment variables must be set.")
+
+    application = Application.builder().token(token).build()
+
+    new_campaign_handler = ConversationHandler(
+        entry_point=MessageHandler(filters.PHOTO, get_image),
+        states={
+            GETTING_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_text)],
+            GETTING_BASE_URL: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_base_url)],
+            GETTING_PPC: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_ppc)],
+            GETTING_CAMPAIGN_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_campaign_id)],
+            GETTING_CHANNELS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_channels)],
+            CONFIRM_POST: [MessageHandler(filters.TEXT & ~filters.COMMAND, confirm_post)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+        map_to_parent={
+            ConversationHandler.END: SELECTING_ACTION
+        }
+    )
+
+    repost_campaign_handler = ConversationHandler(
+        entry_point=MessageHandler(filters.TEXT & ~filters.COMMAND, get_repost_campaign_id),
+        states={
+            EDIT_OPTIONS: [CallbackQueryHandler(handle_edit_options)],
+            EDITING_IMAGE: [MessageHandler(filters.PHOTO, editing_image)],
+            EDITING_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, editing_text)],
+            GETTING_CHANNELS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_channels)],
+            CONFIRM_POST: [MessageHandler(filters.TEXT & ~filters.COMMAND, confirm_post)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+        map_to_parent={
+            ConversationHandler.END: SELECTING_ACTION
+        }
+    )
+
+    main_menu_handler = ConversationHandler(
+        entry_point=CommandHandler("start", start_handler),
+        states={
+            SELECTING_ACTION: [CallbackQueryHandler(handle_main_menu)],
+            UPLOADING_IMAGE: new_campaign_handler,
+            GETTING_REPOST_CAMPAIGN_ID: repost_campaign_handler,
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+
+    application.add_handler(main_menu_handler)
+    application.add_handler(CommandHandler("report", report_handler))
+    application.add_handler(CommandHandler("remind_unposted", remind_unposted_handler))
+
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.getenv("PORT", "8000")),
+        url_path=os.getenv("WEBHOOK_PATH", "/webhook"),
+        webhook_url=webhook_url + os.getenv("WEBHOOK_PATH", "/webhook")
+    )
+
+if __name__ == "__main__":
+    main()
