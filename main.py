@@ -64,8 +64,8 @@ def main():
     application.run_webhook(
         listen="0.0.0.0",
         port=int(os.getenv("PORT", "8000")),
-        url_path=os.getenv("WEBHOOK_PATH", "/webhook"),
-        webhook_url=webhook_url  # <-- This line is now corrected
+        url_path="/webhook",
+        webhook_url=webhook_url
     )
 
 if __name__ == "__main__":
