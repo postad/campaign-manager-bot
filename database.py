@@ -1,12 +1,17 @@
+import os
 from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Table, Numeric
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.dialects.postgresql import JSONB
-import os
 
+# This checks for the DATABASE_URL environment variable.
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL environment variable not set.")
+
+# Add this line to handle SSL connections correctly.
+# The sslmode=require parameter is needed for Supabase's enforced SSL.
+DATABASE_URL += "?sslmode=require"
 
 Base = declarative_base()
 
@@ -63,6 +68,7 @@ class CampaignPosting(Base):
     posted_at = Column(DateTime)
     message_id = Column(Integer) # Added for message deletion
 
+# This creates the database engine.
 engine = create_engine(DATABASE_URL)
 Base.metadata.create_all(engine)
 Session = sessionmaker(bind=engine)
