@@ -17,7 +17,7 @@ def main():
     application = Application.builder().token(token).build()
 
     new_campaign_handler = ConversationHandler(
-        entry_point=MessageHandler(filters.PHOTO, get_image),
+        entry_points=[MessageHandler(filters.PHOTO, get_image)],
         states={
             GETTING_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_text)],
             GETTING_BASE_URL: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_base_url)],
@@ -33,7 +33,7 @@ def main():
     )
 
     repost_campaign_handler = ConversationHandler(
-        entry_point=MessageHandler(filters.TEXT & ~filters.COMMAND, get_repost_campaign_id),
+        entry_points=[MessageHandler(filters.TEXT & ~filters.COMMAND, get_repost_campaign_id)],
         states={
             EDIT_OPTIONS: [CallbackQueryHandler(handle_edit_options)],
             EDITING_IMAGE: [MessageHandler(filters.PHOTO, editing_image)],
@@ -48,7 +48,7 @@ def main():
     )
 
     main_menu_handler = ConversationHandler(
-        entry_point=CommandHandler("start", start_handler),
+        entry_points=[CommandHandler("start", start_handler)],
         states={
             SELECTING_ACTION: [CallbackQueryHandler(handle_main_menu)],
             UPLOADING_IMAGE: new_campaign_handler,
