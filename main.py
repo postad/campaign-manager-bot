@@ -51,8 +51,8 @@ def main():
         entry_points=[CommandHandler("start", start_handler)],
         states={
             SELECTING_ACTION: [CallbackQueryHandler(handle_main_menu)],
-            UPLOADING_IMAGE: new_campaign_handler,
-            GETTING_REPOST_CAMPAIGN_ID: repost_campaign_handler,
+            UPLOADING_IMAGE: [new_campaign_handler],
+            GETTING_REPOST_CAMPAIGN_ID: [repost_campaign_handler],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
