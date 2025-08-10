@@ -30,7 +30,7 @@ def main():
         map_to_parent={
             ConversationHandler.END: SELECTING_ACTION
         },
-        per_message=False # Added to silence the warning
+        per_message=False
     )
 
     repost_campaign_handler = ConversationHandler(
@@ -46,7 +46,7 @@ def main():
         map_to_parent={
             ConversationHandler.END: SELECTING_ACTION
         },
-        per_message=False # Added to silence the warning
+        per_message=False
     )
 
     main_menu_handler = ConversationHandler(
@@ -57,7 +57,7 @@ def main():
             GETTING_REPOST_CAMPAIGN_ID: [repost_campaign_handler],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
-        per_message=False # Added to silence the warning
+        per_message=False
     )
 
     application.add_handler(main_menu_handler)
