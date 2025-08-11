@@ -1,4 +1,3 @@
-import payload  # Ensure payload is imported to set environment variables
 import os
 import requests
 from telegram import Update, Bot
