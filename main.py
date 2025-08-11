@@ -1,5 +1,7 @@
+import payload  # Ensure payload is imported to set environment variables
 import os
-from telegram import Update
+import requests
+from telegram import Update, Bot
 from telegram.ext import Application, CommandHandler, ConversationHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 from bot_handlers import (start_handler, handle_main_menu, get_image, get_text, get_base_url, get_ppc, get_campaign_id,
                          get_channels, confirm_post, cancel, get_repost_campaign_id, handle_edit_options, editing_image, editing_text,
@@ -7,7 +9,30 @@ from bot_handlers import (start_handler, handle_main_menu, get_image, get_text, 
                          SELECTING_ACTION, GETTING_CAMPAIGN_ID, UPLOADING_IMAGE, GETTING_TEXT, GETTING_BASE_URL, GETTING_PPC,
                          GETTING_CHANNELS, CONFIRM_POST, GETTING_REPOST_CAMPAIGN_ID, EDIT_OPTIONS, EDITING_IMAGE, EDITING_TEXT)
 
+def check_and_set_web_hook():
+    bot_token = os.getenv("BOT_TOKEN")
+    webhook_url = os.getenv("WEBHOOK_URL")
+    
+    base_url = f"https://api.telegram.org/bot{bot_token}"
+
+    # Get current webhook info
+    response = requests.get(f"{base_url}/getWebhookInfo")
+    data = response.json()
+
+    current_url = data.get("result", {}).get("url", "")
+
+    if current_url != webhook_url:
+        set_response = requests.post(f"{base_url}/setWebhook", data={"url": webhook_url})
+        if set_response.status_code == 200 and set_response.json().get("ok"):
+            print(f"✅ Webhook set to {webhook_url}")
+        else:
+            print("❌ Failed to set webhook:", set_response.text)
+    else:
+        print(current_url)
+        print("ℹ️ Webhook already set.")
+
 def main():
+    check_and_set_web_hook()
     token = os.getenv("BOT_TOKEN")
     webhook_url = os.getenv("WEBHOOK_URL")
 
@@ -30,7 +55,7 @@ def main():
         map_to_parent={
             ConversationHandler.END: SELECTING_ACTION
         },
-        per_message=False
+        per_message=True
     )
 
     repost_campaign_handler = ConversationHandler(
@@ -73,3 +98,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
