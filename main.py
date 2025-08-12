@@ -1,3 +1,4 @@
+import payload
 import traceback
 import os
 import requests
@@ -90,6 +91,7 @@ def main():
     application.add_handler(CommandHandler("remind_unposted", remind_unposted_handler))
     port = int(os.getenv("PORT", "8080"))
     try:
+        
         application.run_webhook(
             listen="0.0.0.0",
             port=int(os.getenv("PORT", "8080")),
@@ -101,5 +103,10 @@ def main():
         traceback.print_exc()
         
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        print("🔥 Uncaught exception at top level:")
+        traceback.print_exc()
+
     
