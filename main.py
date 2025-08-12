@@ -91,21 +91,17 @@ def main():
     port = int(os.getenv("PORT", "8080"))
     try:
         
-        application.run_webhook(
-            listen="0.0.0.0",
-            port=int(os.getenv("PORT", "8080")),
-            url_path="/webhook",
-            webhook_url=webhook_url
-        )
+        # application.run_webhook(
+        #     listen="0.0.0.0",
+        #     port=int(os.getenv("PORT", "8080")),
+        #     url_path="/webhook",
+        #     webhook_url=webhook_url
+        # )
+        application.run_polling()
     except Exception as e:
         print("❌ Error starting the application:")
         traceback.print_exc()
         
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print("🔥 Uncaught exception at top level:")
-        traceback.print_exc()
-
+    main()
     
