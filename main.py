@@ -96,7 +96,7 @@ def main():
             webhook_url=webhook_url
         )
     except Exception as e:
-        print("App is running on port...", port)
+        print(e)
         print("Error starting the application:", e)
         
 if __name__ == "__main__":
