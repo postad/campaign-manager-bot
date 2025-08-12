@@ -1,4 +1,3 @@
-import payload
 import traceback
 import os
 import requests
