@@ -87,15 +87,18 @@ def main():
     application.add_handler(main_menu_handler)
     application.add_handler(CommandHandler("report", report_handler))
     application.add_handler(CommandHandler("remind_unposted", remind_unposted_handler))
-    port = int(os.getenv("PORT", "8000"))
-    application.run_webhook(
-        listen="0.0.0.0",
-        port=int(os.getenv("PORT", "8080")),
-        url_path="/webhook",
-        webhook_url=webhook_url
-    )
-    print("App is running on port...", port)
-
+    port = int(os.getenv("PORT", "8080"))
+    try:
+        application.run_webhook(
+            listen="0.0.0.0",
+            port=int(os.getenv("PORT", "8080")),
+            url_path="/webhook",
+            webhook_url=webhook_url
+        )
+    except Exception as e:
+        print("App is running on port...", port)
+        print("Error starting the application:", e)
+        
 if __name__ == "__main__":
     main()
     
