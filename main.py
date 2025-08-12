@@ -1,3 +1,4 @@
+import traceback
 import os
 import requests
 from telegram import Update, Bot
@@ -96,8 +97,8 @@ def main():
             webhook_url=webhook_url
         )
     except Exception as e:
-        print(e)
-        print("Error starting the application:", e)
+        print("❌ Error starting the application:")
+        traceback.print_exc()
         
 if __name__ == "__main__":
     main()
