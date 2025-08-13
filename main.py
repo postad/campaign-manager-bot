@@ -32,7 +32,7 @@ def check_and_set_web_hook():
         print("ℹ️ Webhook already set.")
 
 def main():
-    check_and_set_web_hook()
+    # check_and_set_web_hook()
     token = os.getenv("BOT_TOKEN")
     webhook_url = os.getenv("WEBHOOK_URL")
 
@@ -55,7 +55,7 @@ def main():
         map_to_parent={
             ConversationHandler.END: SELECTING_ACTION
         },
-        per_message=True
+        per_message=False
     )
 
     repost_campaign_handler = ConversationHandler(
